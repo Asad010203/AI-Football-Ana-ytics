@@ -1,0 +1,8 @@
+# torch + torchvision installed from local wheels/, not PyPI
+numpy<2
+opencv-python==4.10.0.84
+Pillow>=10.0
+ultralytics==8.4.142
+tqdm>=4.66
+click>=8.1
+norfair>=2.2

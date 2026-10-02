@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+yolo11x.pt
+Modals/
+wheels/
+input/*
+output/*
+!input/.gitkeep
+!output/.gitkeep
