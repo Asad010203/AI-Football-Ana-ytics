@@ -7,10 +7,8 @@ import html
 import json
 import os
 import shutil
-import subprocess
 import sys
 import threading
-import time
 import urllib.error
 import urllib.request
 import uuid
@@ -19,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 APP_VERSION = "0.1.0"
 GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
 RELEASE_ASSET_NAME = "football-worker.exe"
@@ -61,38 +59,20 @@ def _job_snapshot(job_id: str) -> dict[str, Any] | None:
 
 
 def _run_job(job_id: str, video_path: Path, output_dir: Path) -> None:
-    commands = [
-        [
-            sys.executable,
-            str(ROOT / "run.py"),
-            "--video",
-            str(video_path),
-            "--output-dir",
-            str(output_dir),
-        ],
-        [
-            sys.executable,
-            str(ROOT / "analyze.py"),
-            "--output-dir",
-            str(output_dir),
-            "--video",
-            str(video_path),
-        ],
-    ]
     try:
         with _jobs_lock:
             _jobs[job_id]["status"] = "processing"
-        for command in commands:
-            completed = subprocess.run(
-                command,
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if completed.returncode != 0:
-                detail = completed.stderr[-4000:] or completed.stdout[-4000:]
-                raise RuntimeError(detail or "Analytics process failed")
+        from analyze import main as analyze_main
+        from run import main as run_main
+
+        run_main(
+            ["--video", str(video_path), "--output-dir", str(output_dir)],
+            standalone_mode=False,
+        )
+        analyze_main(
+            ["--output-dir", str(output_dir), "--video", str(video_path)],
+            standalone_mode=False,
+        )
         with _jobs_lock:
             _jobs[job_id].update(
                 status="complete",

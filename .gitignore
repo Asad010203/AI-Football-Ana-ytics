@@ -8,3 +8,6 @@ input/*
 output/*
 !input/.gitkeep
 !output/.gitkeep
+build/
+dist/
+*.spec

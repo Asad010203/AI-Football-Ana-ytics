@@ -56,3 +56,17 @@ job completes.
 The worker checks GitHub Releases through `/api/update-check`. Packaged
 `football-worker.exe` releases can use the same endpoint for automatic update
 delivery; development runs continue using the checked-out source.
+
+## Build the client worker
+
+After the model files are present locally, install the packaging dependency and
+build a Windows folder distribution:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install pyinstaller
+.\build_worker.ps1
+```
+
+Copy the complete `dist\football-worker\` folder to the client PC. Start it
+with `start_worker.bat`. The folder must include the packaged model files; the
+client does not need the Python source or a Python installation.
