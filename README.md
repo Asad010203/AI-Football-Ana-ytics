@@ -62,6 +62,10 @@ delivery; development runs continue using the checked-out source.
 After the model files are present locally, install the packaging dependency and
 build a Windows folder distribution:
 
+The build environment must use Python 3.10.11 or newer. Python 3.10.0 has a
+bytecode-disassembly issue that can cause PyInstaller to fail with
+`IndexError: tuple index out of range`.
+
 ```powershell
 .\.venv\Scripts\python.exe -m pip install pyinstaller
 .\build_worker.ps1

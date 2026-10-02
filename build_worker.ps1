@@ -8,6 +8,11 @@ if (-not (Test-Path $python)) {
     throw "Create the .venv and install requirements.txt before building."
 }
 
+$pythonVersion = & $python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+if ([version]$pythonVersion -lt [version]"3.10.11") {
+    throw "PyInstaller requires Python 3.10.11 or newer for this build. Found Python $pythonVersion. Install Python 3.10.11+, recreate .venv, and install requirements.txt."
+}
+
 $models = @(
     "Modals\yolov11\yolo11x.pt",
     "Modals\yolov26\yolo26x.pt"
