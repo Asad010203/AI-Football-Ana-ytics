@@ -1,0 +1,302 @@
+"""Local browser worker for client-side football video analytics."""
+
+from __future__ import annotations
+
+import cgi
+import html
+import json
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import time
+import urllib.error
+import urllib.request
+import uuid
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parent
+APP_VERSION = "0.1.0"
+GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
+RELEASE_ASSET_NAME = "football-worker.exe"
+HOST = "127.0.0.1"
+PORT = 8000
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024 * 1024
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".m4v"}
+
+_jobs: dict[str, dict[str, Any]] = {}
+_jobs_lock = threading.Lock()
+
+
+def _gpu_status() -> dict[str, Any]:
+    try:
+        import torch
+
+        available = bool(torch.cuda.is_available())
+        return {
+            "cuda_available": available,
+            "device": torch.cuda.get_device_name(0) if available else "CPU",
+            "cuda_version": torch.version.cuda if available else None,
+        }
+    except ImportError:
+        return {"cuda_available": False, "device": "CPU", "cuda_version": None}
+
+
+def _safe_video_name(name: str) -> str:
+    path = Path(name)
+    suffix = path.suffix.lower()
+    if suffix not in VIDEO_EXTENSIONS:
+        raise ValueError("Unsupported video format")
+    return f"{uuid.uuid4().hex}{suffix}"
+
+
+def _job_snapshot(job_id: str) -> dict[str, Any] | None:
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        return dict(job) if job is not None else None
+
+
+def _run_job(job_id: str, video_path: Path, output_dir: Path) -> None:
+    commands = [
+        [
+            sys.executable,
+            str(ROOT / "run.py"),
+            "--video",
+            str(video_path),
+            "--output-dir",
+            str(output_dir),
+        ],
+        [
+            sys.executable,
+            str(ROOT / "analyze.py"),
+            "--output-dir",
+            str(output_dir),
+            "--video",
+            str(video_path),
+        ],
+    ]
+    try:
+        with _jobs_lock:
+            _jobs[job_id]["status"] = "processing"
+        for command in commands:
+            completed = subprocess.run(
+                command,
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if completed.returncode != 0:
+                detail = completed.stderr[-4000:] or completed.stdout[-4000:]
+                raise RuntimeError(detail or "Analytics process failed")
+        with _jobs_lock:
+            _jobs[job_id].update(
+                status="complete",
+                results_url=f"/results/{job_id}/client_response.json",
+                video_url=f"/results/{job_id}/annotated.mp4",
+            )
+    except Exception as exc:
+        with _jobs_lock:
+            _jobs[job_id].update(status="failed", error=str(exc))
+
+
+def _latest_release() -> dict[str, Any] | None:
+    url = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/releases/latest"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "football-worker",
+        },
+    )
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        return None
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    cleaned = version.lstrip("v").split("-")[0]
+    try:
+        return tuple(int(part) for part in cleaned.split("."))
+    except ValueError:
+        return (0,)
+
+
+def _check_for_update() -> dict[str, Any]:
+    release = _latest_release()
+    if release is None:
+        return {"current_version": APP_VERSION, "update_available": False}
+    latest = str(release.get("tag_name", "")).lstrip("v")
+    asset = next(
+        (item for item in release.get("assets", []) if item.get("name") == RELEASE_ASSET_NAME),
+        None,
+    )
+    return {
+        "current_version": APP_VERSION,
+        "latest_version": latest,
+        "update_available": _version_tuple(latest) > _version_tuple(APP_VERSION),
+        "download_available": asset is not None,
+    }
+
+
+def _page() -> bytes:
+    status = _gpu_status()
+    gpu_text = html.escape(str(status["device"]))
+    cuda_text = "Available" if status["cuda_available"] else "Unavailable (CPU fallback)"
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>Football Analytics Worker</title>
+<style>
+body{{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px;color:#17202a}}
+button{{padding:10px 16px;cursor:pointer}} .card{{border:1px solid #ddd;border-radius:8px;padding:18px;margin:16px 0}}
+#status{{white-space:pre-wrap}} a{{display:block;margin-top:8px}}
+</style></head><body>
+<h1>Football Analytics</h1>
+<div class="card"><b>Worker:</b> {APP_VERSION}<br>
+<b>Device:</b> {gpu_text}<br><b>CUDA:</b> {cuda_text}</div>
+<div class="card"><form id="form">
+<input id="video" type="file" accept="video/*" required>
+<button>Run analytics</button></form>
+<p id="status">Choose a video to begin.</p><div id="links"></div></div>
+<script>
+const form = document.querySelector("#form");
+const status = document.querySelector("#status");
+const links = document.querySelector("#links");
+form.addEventListener("submit", async (event) => {{
+  event.preventDefault(); links.innerHTML = ""; status.textContent = "Uploading video...";
+  const data = new FormData(); data.append("video", document.querySelector("#video").files[0]);
+  const response = await fetch("/api/jobs", {{method:"POST", body:data}});
+  const job = await response.json();
+  if (!response.ok) {{ status.textContent = job.error || "Unable to start job"; return; }}
+  poll(job.job_id);
+}});
+async function poll(id) {{
+  const response = await fetch("/api/jobs/" + id); const job = await response.json();
+  status.textContent = job.status === "processing" ? "Processing..." :
+    job.status === "failed" ? "Failed: " + job.error : job.status;
+  if (job.status === "complete") {{
+    links.innerHTML = `<a href="${{job.results_url}}" target="_blank">Open JSON results</a>
+      <a href="${{job.video_url}}" target="_blank">Open annotated video</a>`;
+    return;
+  }}
+  if (job.status !== "failed") setTimeout(() => poll(id), 2000);
+}}
+</script></body></html>""".encode("utf-8")
+
+
+class WorkerHandler(BaseHTTPRequestHandler):
+    server_version = "FootballWorker/0.1"
+
+    def _send_json(self, payload: dict[str, Any], status: int = HTTPStatus.OK) -> None:
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        if self.path == "/":
+            body = _page()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/api/status":
+            self._send_json({"version": APP_VERSION, "gpu": _gpu_status()})
+            return
+        if self.path == "/api/update-check":
+            self._send_json(_check_for_update())
+            return
+        if self.path.startswith("/api/jobs/"):
+            job = _job_snapshot(self.path.rsplit("/", 1)[-1])
+            self._send_json(job or {"error": "Job not found"}, HTTPStatus.OK if job else HTTPStatus.NOT_FOUND)
+            return
+        if self.path.startswith("/results/"):
+            self._serve_result()
+            return
+        self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_POST(self) -> None:
+        if self.path != "/api/jobs":
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        if int(self.headers.get("Content-Length", "0")) > MAX_UPLOAD_BYTES:
+            self._send_json({"error": "Video exceeds the 50 GB upload limit"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": self.headers.get("Content-Type", "")},
+        )
+        if "video" not in form or not getattr(form["video"], "filename", None):
+            self._send_json({"error": "Select a video first"}, HTTPStatus.BAD_REQUEST)
+            return
+        job_id = uuid.uuid4().hex
+        try:
+            filename = _safe_video_name(form["video"].filename)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        video_dir = ROOT / "input" / "worker_jobs" / job_id
+        output_dir = ROOT / "output" / "worker_jobs" / job_id
+        video_dir.mkdir(parents=True, exist_ok=False)
+        output_dir.mkdir(parents=True, exist_ok=False)
+        video_path = video_dir / filename
+        with video_path.open("wb") as target:
+            shutil.copyfileobj(form["video"].file, target)
+        with _jobs_lock:
+            _jobs[job_id] = {"job_id": job_id, "status": "queued"}
+        threading.Thread(target=_run_job, args=(job_id, video_path, output_dir), daemon=True).start()
+        self._send_json({"job_id": job_id}, HTTPStatus.ACCEPTED)
+
+    def _serve_result(self) -> None:
+        parts = self.path.split("/")
+        if len(parts) != 4:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        job_id, name = parts[2], parts[3]
+        if name not in {"client_response.json", "annotated.mp4", "ball_heatmap.png"}:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        path = ROOT / "output" / "worker_jobs" / job_id / name
+        if not path.is_file():
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        content_type = "application/json" if name.endswith(".json") else "video/mp4" if name.endswith(".mp4") else "image/png"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(path.stat().st_size))
+        self.end_headers()
+        with path.open("rb") as source:
+            shutil.copyfileobj(source, self.wfile)
+
+    def log_message(self, format: str, *args: object) -> None:
+        print(f"[worker] {format % args}")
+
+
+def main() -> None:
+    server = ThreadingHTTPServer((HOST, PORT), WorkerHandler)
+    print(f"Football Analytics Worker {APP_VERSION}")
+    print(f"Open http://{HOST}:{PORT}")
+    print(f"GPU: {_gpu_status()['device']}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping worker")
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()
