@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", ROOT))
 APP_VERSION = "0.1.0"
 GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
 RELEASE_ASSET_NAME = "football-worker.exe"
@@ -266,6 +267,8 @@ class WorkerHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    if getattr(sys, "frozen", False):
+        os.chdir(RESOURCE_ROOT)
     server = ThreadingHTTPServer((HOST, PORT), WorkerHandler)
     print(f"Football Analytics Worker {APP_VERSION}")
     print(f"Open http://{HOST}:{PORT}")

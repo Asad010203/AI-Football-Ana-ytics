@@ -40,4 +40,5 @@ if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller failed."
 }
 
+Copy-Item "start_worker.bat" "dist\football-worker\start_worker.bat" -Force
 Write-Output "Worker created at $root\dist\football-worker\football-worker.exe"
