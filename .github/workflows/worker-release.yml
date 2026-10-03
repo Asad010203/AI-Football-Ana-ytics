@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path dist\football-worker -DestinationPath football-worker.zip
-          $chunkSize = 1900MB
+          [long]$chunkSize = 1900MB
           $buffer = New-Object byte[] (4MB)
           $input = [System.IO.File]::OpenRead("football-worker.zip")
           $index = 1
@@ -45,9 +45,9 @@ jobs:
               $suffix = "{0:D3}" -f $index
               $output = [System.IO.File]::Create("football-worker.zip.$suffix")
               try {
-                $remaining = [math]::Min($chunkSize, $input.Length - $input.Position)
+                [long]$remaining = [math]::Min([long]$chunkSize, [long]($input.Length - $input.Position))
                 while ($remaining -gt 0) {
-                  $read = $input.Read($buffer, 0, [math]::Min($buffer.Length, $remaining))
+                  $read = $input.Read($buffer, 0, [int][math]::Min([long]$buffer.Length, $remaining))
                   if ($read -le 0) { break }
                   $output.Write($buffer, 0, $read)
                   $remaining -= $read
