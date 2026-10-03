@@ -42,8 +42,7 @@ jobs:
           $index = 1
           try {
             while ($input.Position -lt $input.Length) {
-              $suffix = "{0:D3}" -f $index
-              $output = [System.IO.File]::Create("football-worker.zip.$suffix")
+              $output = [System.IO.File]::Create(("football-worker.zip.{0:D3}" -f $index))
               try {
                 [long]$remaining = [math]::Min([long]$chunkSize, [long]($input.Length - $input.Position))
                 while ($remaining -gt 0) {
@@ -52,14 +51,10 @@ jobs:
                   $output.Write($buffer, 0, $read)
                   $remaining -= $read
                 }
-              } finally {
-                $output.Dispose()
-              }
+              } finally { $output.Dispose() }
               $index++
             }
-          } finally {
-            $input.Dispose()
-          }
+          } finally { $input.Dispose() }
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
