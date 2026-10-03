@@ -152,7 +152,7 @@ def _start_update(release: dict[str, Any]) -> None:
     archive_urls = json.dumps([str(asset["browser_download_url"]) for asset in assets])
     subprocess.Popen(
         [str(updater_executable), str(package_dir), archive_urls, str(os.getpid())],
-        cwd=package_dir,
+        cwd=package_dir.parent,
         close_fds=True,
     )
 
