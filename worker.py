@@ -173,6 +173,11 @@ button{{padding:10px 16px;cursor:pointer}} .card{{border:1px solid #ddd;border-r
 const form = document.querySelector("#form");
 const status = document.querySelector("#status");
 const links = document.querySelector("#links");
+fetch("/api/update-check").then(response => response.json()).then(update => {{
+  if (update.status === "update_started") {{
+    status.textContent = "Updating worker. Please wait...";
+  }}
+}}).catch(() => {{}});
 form.addEventListener("submit", async (event) => {{
   event.preventDefault(); links.innerHTML = ""; status.textContent = "Uploading video...";
   const data = new FormData(); data.append("video", document.querySelector("#video").files[0]);
