@@ -50,5 +50,5 @@ Copy-Item "start_worker.bat" "dist\football-worker\start_worker.bat" -Force
 if ($LASTEXITCODE -ne 0) {
     throw "Updater build failed."
 }
-Copy-Item "dist\updater\updater.exe" "dist\football-worker\updater.exe" -Force
+Copy-Item "dist\updater.exe" "dist\football-worker\updater.exe" -Force
 Write-Output "Worker created at $root\dist\football-worker\football-worker.exe"
