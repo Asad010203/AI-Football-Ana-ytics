@@ -10,13 +10,13 @@ Model files are expected at:
 - `Modals/yolov11/yolo11x.pt`
 - `Modals/yolov26/yolo26x.pt`
 
-Torch/torchvision wheels are expected under `wheels/`.
+For RTX 50-series GPUs, use the CUDA 12.8 PyTorch wheels:
 
 ```powershell
 py -3.10 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
 .\.venv\Scripts\python.exe -m pip install "numpy<2" "opencv-python==4.10.0.84" "Pillow>=10.0"
-.\.venv\Scripts\python.exe -m pip install "wheels\torch-2.6.0+cu124-cp310-cp310-win_amd64.whl" "wheels\torchvision-0.21.0+cu124-cp310-cp310-win_amd64.whl"
+.\.venv\Scripts\python.exe -m pip install "torch==2.9.1" "torchvision==0.24.1" --index-url https://download.pytorch.org/whl/cu128
 .\.venv\Scripts\python.exe -m pip install "ultralytics==8.4.142" "tqdm>=4.66" "click>=8.1" "norfair>=2.2"
 ```
 

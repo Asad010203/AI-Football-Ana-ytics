@@ -40,9 +40,7 @@ D:\AI football analytics\
 ## Environment
 
 - **Windows 11**, **Python 3.10**, NVIDIA GPU (dev machine: Quadro P3200, 6 GB VRAM).
-- Torch 2.6.0+cu124 and torchvision 0.21.0+cu124 installed **from local wheels only** — never from PyPI or the pytorch.org index:
-  - `wheels\torch-2.6.0+cu124-cp310-cp310-win_amd64.whl`
-  - `wheels\torchvision-0.21.0+cu124-cp310-cp310-win_amd64.whl`
+- Torch 2.9.1+cu128 and torchvision 0.24.1+cu128 are used for packaged releases so RTX 50-series GPUs (sm_120) are supported.
 - Ultralytics: `ultralytics==8.4.142` (supports YOLO26 — added upstream in 8.4.125).
 - Tracker: `norfair>=2.2` (installed version 2.3.0).
 
