@@ -31,6 +31,8 @@ foreach ($model in $models) {
     --onedir `
     --name football-worker `
     --add-data "Modals;Modals" `
+    --copy-metadata norfair `
+    --copy-metadata ultralytics `
     --exclude-module tensorboard `
     --exclude-module IPython `
     --exclude-module jupyter `

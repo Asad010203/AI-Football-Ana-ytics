@@ -20,9 +20,9 @@ from typing import Any
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", ROOT))
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.1.7"
 GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
-RELEASE_ASSET_NAME = "football-worker.exe"
+RELEASE_ASSET_NAME = "football-worker.zip"
 HOST = "127.0.0.1"
 PORT = 8000
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024 * 1024
