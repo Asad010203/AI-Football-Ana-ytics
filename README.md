@@ -55,7 +55,17 @@ job completes.
 
 The worker checks GitHub Releases through `/api/update-check`. Packaged
 `football-worker.exe` releases can use the same endpoint for automatic update
-delivery; development runs continue using the checked-out source.
+delivery. When a newer `football-worker.zip` release exists, a packaged worker
+downloads it, replaces itself after shutdown, and restarts automatically.
+
+To publish an update, commit the change, create a version tag, and push it:
+
+```powershell
+git tag v0.1.2
+git push origin v0.1.2
+```
+
+The GitHub Actions workflow builds and publishes `football-worker.zip`.
 
 ## Build the client worker
 

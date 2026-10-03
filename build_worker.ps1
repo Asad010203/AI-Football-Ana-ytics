@@ -39,4 +39,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Copy-Item "start_worker.bat" "dist\football-worker\start_worker.bat" -Force
+& $python -m PyInstaller `
+    --noconfirm `
+    --clean `
+    --onefile `
+    --name updater `
+    updater.py
+if ($LASTEXITCODE -ne 0) {
+    throw "Updater build failed."
+}
+Copy-Item "dist\updater\updater.exe" "dist\football-worker\updater.exe" -Force
 Write-Output "Worker created at $root\dist\football-worker\football-worker.exe"

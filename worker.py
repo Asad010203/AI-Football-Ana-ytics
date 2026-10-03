@@ -7,6 +7,7 @@ import html
 import json
 import os
 import shutil
+import subprocess
 import sys
 import threading
 import urllib.error
@@ -134,6 +135,22 @@ def _check_for_update() -> dict[str, Any]:
     }
 
 
+def _start_update(release: dict[str, Any]) -> None:
+    asset = next(
+        (item for item in release.get("assets", []) if item.get("name") == "football-worker.zip"),
+        None,
+    )
+    if asset is None or not getattr(sys, "frozen", False):
+        raise RuntimeError("No packaged worker.zip asset is available")
+    package_dir = ROOT
+    updater_executable = package_dir / "updater.exe"
+    subprocess.Popen(
+        [str(updater_executable), str(package_dir), str(asset["browser_download_url"]), str(os.getpid())],
+        cwd=package_dir,
+        close_fds=True,
+    )
+
+
 def _page() -> bytes:
     status = _gpu_status()
     gpu_text = html.escape(str(status["device"]))
@@ -202,7 +219,12 @@ class WorkerHandler(BaseHTTPRequestHandler):
             self._send_json({"version": APP_VERSION, "gpu": _gpu_status()})
             return
         if self.path == "/api/update-check":
-            self._send_json(_check_for_update())
+            release = _latest_release()
+            result = _check_for_update()
+            if release and result["update_available"]:
+                _start_update(release)
+                result["status"] = "update_started"
+            self._send_json(result)
             return
         if self.path.startswith("/api/jobs/"):
             job = _job_snapshot(self.path.rsplit("/", 1)[-1])

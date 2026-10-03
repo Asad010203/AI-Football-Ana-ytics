@@ -2,7 +2,11 @@
 __pycache__/
 *.pyc
 yolo11x.pt
-Modals/
+Modals/*
+!Modals/yolov11/
+!Modals/yolov11/yolo11x.pt
+!Modals/yolov26/
+!Modals/yolov26/yolo26x.pt
 wheels/
 input/*
 output/*
