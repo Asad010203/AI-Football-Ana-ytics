@@ -230,6 +230,8 @@ class WorkerHandler(BaseHTTPRequestHandler):
                 _start_update(release)
                 result["status"] = "update_started"
             self._send_json(result)
+            if result.get("status") == "update_started":
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
             return
         if self.path.startswith("/api/jobs/"):
             job = _job_snapshot(self.path.rsplit("/", 1)[-1])
