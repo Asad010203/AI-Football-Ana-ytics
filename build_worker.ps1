@@ -3,9 +3,11 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
-$python = Join-Path $root ".venv\Scripts\python.exe"
-if (-not (Test-Path $python)) {
-    throw "Create the .venv and install requirements.txt before building."
+$venvPython = Join-Path $root ".venv\Scripts\python.exe"
+if (Test-Path $venvPython) {
+    $python = $venvPython
+} else {
+    $python = (Get-Command python -ErrorAction Stop).Source
 }
 
 $pythonVersion = & $python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
