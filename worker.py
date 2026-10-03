@@ -20,7 +20,7 @@ from typing import Any
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", ROOT))
-APP_VERSION = "0.1.7"
+APP_VERSION = "0.1.8"
 GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
 RELEASE_ASSET_NAME = "football-worker.zip"
 HOST = "127.0.0.1"
@@ -123,29 +123,35 @@ def _check_for_update() -> dict[str, Any]:
     if release is None:
         return {"current_version": APP_VERSION, "update_available": False}
     latest = str(release.get("tag_name", "")).lstrip("v")
-    asset = next(
-        (item for item in release.get("assets", []) if item.get("name") == RELEASE_ASSET_NAME),
-        None,
-    )
+    asset_names = {
+        str(item.get("name"))
+        for item in release.get("assets", [])
+        if str(item.get("name", "")).startswith(f"{RELEASE_ASSET_NAME}.")
+    }
     return {
         "current_version": APP_VERSION,
         "latest_version": latest,
         "update_available": _version_tuple(latest) > _version_tuple(APP_VERSION),
-        "download_available": asset is not None,
+        "download_available": bool(asset_names),
     }
 
 
 def _start_update(release: dict[str, Any]) -> None:
-    asset = next(
-        (item for item in release.get("assets", []) if item.get("name") == "football-worker.zip"),
-        None,
+    assets = sorted(
+        (
+            item
+            for item in release.get("assets", [])
+            if str(item.get("name", "")).startswith(f"{RELEASE_ASSET_NAME}.")
+        ),
+        key=lambda item: str(item.get("name")),
     )
-    if asset is None or not getattr(sys, "frozen", False):
-        raise RuntimeError("No packaged worker.zip asset is available")
+    if not assets or not getattr(sys, "frozen", False):
+        raise RuntimeError("No packaged worker release assets are available")
     package_dir = ROOT
     updater_executable = package_dir / "updater.exe"
+    archive_urls = json.dumps([str(asset["browser_download_url"]) for asset in assets])
     subprocess.Popen(
-        [str(updater_executable), str(package_dir), str(asset["browser_download_url"]), str(os.getpid())],
+        [str(updater_executable), str(package_dir), archive_urls, str(os.getpid())],
         cwd=package_dir,
         close_fds=True,
     )

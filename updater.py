@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import json
 import sys
 import tempfile
 import time
@@ -11,11 +12,14 @@ import zipfile
 from pathlib import Path
 
 
-def update(package_dir: Path, archive_url: str, process_id: int) -> None:
+def update(package_dir: Path, archive_urls: list[str], process_id: int) -> None:
     with tempfile.TemporaryDirectory(prefix="football-worker-update-") as temp:
         temp_dir = Path(temp)
         archive_path = temp_dir / "worker.zip"
-        urllib.request.urlretrieve(archive_url, archive_path)
+        with archive_path.open("wb") as output:
+            for archive_url in archive_urls:
+                with urllib.request.urlopen(archive_url, timeout=60) as response:
+                    shutil.copyfileobj(response, output)
         extracted = temp_dir / "extracted"
         with zipfile.ZipFile(archive_path) as archive:
             archive.extractall(extracted)
@@ -43,4 +47,4 @@ def update(package_dir: Path, archive_url: str, process_id: int) -> None:
 
 
 if __name__ == "__main__":
-    update(Path(sys.argv[1]), sys.argv[2], int(sys.argv[3]))
+    update(Path(sys.argv[1]), json.loads(sys.argv[2]), int(sys.argv[3]))
