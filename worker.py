@@ -21,7 +21,7 @@ from typing import Any
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", ROOT))
-APP_VERSION = "0.1.11"
+APP_VERSION = "0.1.13"
 GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
 RELEASE_ASSET_NAME = "football-worker.zip"
 HOST = "127.0.0.1"
