@@ -30,8 +30,6 @@ foreach ($model in $models) {
     --name football-worker `
     --add-data "Modals;Modals" `
     --exclude-module tensorboard `
-    --exclude-module torch.distributed `
-    --exclude-module torch.utils.tensorboard `
     --exclude-module IPython `
     --exclude-module jupyter `
     worker.py

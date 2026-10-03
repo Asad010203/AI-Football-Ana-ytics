@@ -19,7 +19,7 @@ from typing import Any
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", ROOT))
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.1"
 GITHUB_REPOSITORY = "Asad010203/AI-Football-Ana-ytics"
 RELEASE_ASSET_NAME = "football-worker.exe"
 HOST = "127.0.0.1"
@@ -41,8 +41,13 @@ def _gpu_status() -> dict[str, Any]:
             "device": torch.cuda.get_device_name(0) if available else "CPU",
             "cuda_version": torch.version.cuda if available else None,
         }
-    except ImportError:
-        return {"cuda_available": False, "device": "CPU", "cuda_version": None}
+    except Exception as exc:
+        return {
+            "cuda_available": False,
+            "device": "Unavailable",
+            "cuda_version": None,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
 
 
 def _safe_video_name(name: str) -> str:
